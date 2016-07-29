@@ -11,6 +11,7 @@ import net.dongliu.requests.Response;
 import net.dongliu.requests.Session;
 import net.dongliu.requests.exception.RequestException;
 import org.apache.log4j.Logger;
+import org.apache.log4j.net.SyslogAppender;
 
 import java.io.Closeable;
 import java.io.File;
@@ -19,7 +20,7 @@ import java.util.*;
 
 /**
  * Api客户端.
- * 
+ *
  * @author ScienJus
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
  * @date 2015/12/18.
@@ -37,7 +38,7 @@ public class SmartQQClient implements Closeable {
 
     //客户端
     private Client client;
-    
+
     //会话
     private Session session;
 
@@ -70,6 +71,7 @@ public class SmartQQClient implements Closeable {
                             pollMessage(callback);
                         } catch (Exception ignore) {
                             LOGGER.error(ignore.getMessage());
+                        } catch (RequestException ignore) {
                         }
                     }
                 }
@@ -164,6 +166,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获取群列表
+     *
      * @return
      */
     public List<Group> getGroupList() {
@@ -180,7 +183,8 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 拉取消息
-     * @param callback  获取消息后的回调
+     *
+     * @param callback 获取消息后的回调
      */
     private void pollMessage(MessageCallback callback) {
         LOGGER.debug("开始接收消息");
@@ -208,8 +212,9 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 发送群消息
-     * @param groupId   群id
-     * @param msg       消息内容
+     *
+     * @param groupId 群id
+     * @param msg     消息内容
      */
     public void sendMessageToGroup(long groupId, String msg) {
         LOGGER.debug("开始发送群消息");
@@ -228,6 +233,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 发送讨论组消息
+     *
      * @param discussId 讨论组id
      * @param msg       消息内容
      */
@@ -248,8 +254,9 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 发送消息
-     * @param friendId  好友id
-     * @param msg       消息内容
+     *
+     * @param friendId 好友id
+     * @param msg      消息内容
      */
     public void sendMessageToFriend(long friendId, String msg) {
         LOGGER.debug("开始发送消息");
@@ -268,6 +275,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得讨论组列表
+     *
      * @return
      */
     public List<Discuss> getDiscussList() {
@@ -279,6 +287,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得好友列表（包含分组信息）
+     *
      * @return
      */
     public List<Category> getFriendListWithCategory() {
@@ -311,6 +320,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获取好友列表
+     *
      * @return
      */
     public List<Friend> getFriendList() {
@@ -352,6 +362,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得当前登录用户的详细信息
+     *
      * @return
      */
     public UserInfo getAccountInfo() {
@@ -363,6 +374,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得好友的详细信息
+     *
      * @return
      */
     public UserInfo getFriendInfo(long friendId) {
@@ -374,6 +386,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得最近会话列表
+     *
      * @return
      */
     public List<Recent> getRecentList() {
@@ -390,7 +403,8 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得qq号
-     * @param friendId    用户id
+     *
+     * @param friendId 用户id
      * @return
      */
     public long getQQById(long friendId) {
@@ -402,6 +416,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得登录状态
+     *
      * @return
      */
     public List<FriendStatus> getFriendStatus() {
@@ -413,6 +428,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得群的详细信息
+     *
      * @param groupCode 群编号
      * @return
      */
@@ -454,6 +470,7 @@ public class SmartQQClient implements Closeable {
 
     /**
      * 获得讨论组的详细信息
+     *
      * @param discussId 讨论组id
      * @return
      */
@@ -549,7 +566,8 @@ public class SmartQQClient implements Closeable {
     private static void sleep(long seconds) {
         try {
             Thread.sleep(seconds * 1000);
-        } catch (InterruptedException ignored) {}
+        } catch (InterruptedException ignored) {
+        }
     }
 
     //hash加密方法
@@ -585,6 +603,39 @@ public class SmartQQClient implements Closeable {
         this.pollStarted = false;
         if (this.client != null) {
             this.client.close();
+        }
+    }
+
+    public static void main(String[] args) {
+        SmartQQClient client = new SmartQQClient(new MessageCallback() {
+            @Override
+            public void onMessage(Message message) {
+                System.out.println(message.getContent());
+            }
+
+            @Override
+            public void onGroupMessage(GroupMessage message) {
+                System.out.println(message.getContent());
+            }
+
+            @Override
+            public void onDiscussMessage(DiscussMessage message) {
+                System.out.println(message.getContent());
+            }
+        });
+        //登录成功后便可以编写你自己的业务逻辑了
+        List<Category> categories = client.getFriendListWithCategory();
+        for (Category category : categories) {
+            System.out.println(category.getName());
+            for (Friend friend : category.getFriends()) {
+                System.out.println("————" + friend.getNickname());
+            }
+        }
+        //使用后调用close方法关闭，你也可以使用try-with-resource创建该对象并自动关闭
+        try {
+            client.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
